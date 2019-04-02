@@ -1,0 +1,472 @@
+---
+title: "# Gun Violence - USA 2014-2018 "
+output: html_notebook
+---
+### The data come from the Kaggle website and relate to the useage of weapons in the US in 2014-18 with reported fatalities, wounded people, gender and other interesting variables (approx. 240,000 observations). In addition, I downloaded data on the number of registered weapons, population in US cities, and population in particular states. An analysis will be carried out, preceded by cleaning and data preparation, followed by visualization. The description for variables in this dataset has been included in a separate file.
+
+```{r}
+#Import necessary libraries
+
+library(graphics)
+library(lattice)
+library(latticeExtra)
+library(ggplot2)
+library(gridExtra)
+library(dplyr)
+library(reshape)
+library(lubridate)
+library(knitr)
+library(readr)
+library(tibble)
+library(stringr)
+library(gridExtra)
+library(scales)
+library(lubridate)
+library(ggrepel)
+library(leaflet)
+library(rgdal)
+library(plotly)
+library(splitstackshape)
+library(grid)
+library(car)
+library(plotrix)
+library(data.table)
+library(readr)
+
+```
+
+```{r}
+#Load data into data frames
+
+my_data_0 <- read.delim("https://raw.githubusercontent.com/malewiczK/Data-Science-overall-projects/master/Data/split_files0.txt")
+my_data_1 <- read.delim("https://raw.githubusercontent.com/malewiczK/Data-Science-overall-projects/master/Data/split_files1.txt", header = FALSE)
+my_data_2 <- read.delim("https://raw.githubusercontent.com/malewiczK/Data-Science-overall-projects/master/Data/split_files2.txt", header = FALSE)
+my_data_3 <- read.delim("https://raw.githubusercontent.com/malewiczK/Data-Science-overall-projects/master/Data/split_files3.txt", header = FALSE)
+my_data_4 <- read.delim("https://raw.githubusercontent.com/malewiczK/Data-Science-overall-projects/master/Data/split_files4.txt", header = FALSE)
+my_data_5 <- read.delim("https://raw.githubusercontent.com/malewiczK/Data-Science-overall-projects/master/Data/split_files5.txt", header = FALSE)
+my_data_6 <- read.delim("https://raw.githubusercontent.com/malewiczK/Data-Science-overall-projects/master/Data/split_files6.txt", header = FALSE)
+my_data_7 <- read.delim("https://raw.githubusercontent.com/malewiczK/Data-Science-overall-projects/master/Data/split_files7.txt", header = FALSE)
+
+guns_registered <- read.delim("https://raw.githubusercontent.com/malewiczK/Data-Science-overall-projects/master/Data/Guns_registered2.txt")
+USA_population <- read.delim("https://raw.githubusercontent.com/malewiczK/Data-Science-overall-projects/master/Data/USA_population2.txt")
+state_population <- read.delim("https://raw.githubusercontent.com/malewiczK/Data-Science-overall-projects/master/Data/state_usa.txt")
+```
+
+```{r}
+#Adding column names to data frames
+
+colnames(my_data_1) <- colnames(my_data_0)
+colnames(my_data_2) <- colnames(my_data_0)
+colnames(my_data_3) <- colnames(my_data_0)
+colnames(my_data_4) <- colnames(my_data_0)
+colnames(my_data_5) <- colnames(my_data_0)
+colnames(my_data_6) <- colnames(my_data_0)
+colnames(my_data_7) <- colnames(my_data_0)
+```
+
+```{r}
+#Concatenating
+
+gun_violence <- rbind(my_data_0,my_data_1,my_data_2,my_data_3,my_data_4,my_data_5,my_data_6,my_data_7)
+
+#Chart 1
+
+options(repr.plot.width = 7, repr.plot.height = 4)
+gun5 <- filter(gun_violence, nr.of.guns.used < 6)
+gun5.t <- count(gun5, "nr.of.guns.used")
+ggplot(gun5, aes(x=nr.of.guns.used)) + geom_histogram(bins=9) + labs(x="Number of guns used in combat",
+     y = "Frequency", title= "Histogram of number of guns used")
+```
+
+### The above histogram  shows the number of weapons used during the incident, which was most frequently recorded in the years 2014-2018. There is definitely 1 pcs of weapon, which is used during the assault. The histogram omits observations that did not have an assigned number of weapons used during the incident (more or less half of the observations did not have such information).
+
+```{r}
+#Chart 2
+
+options(repr.plot.width = 3, repr.plot.height = 4)
+box <- gun_violence %>% select(date...year, n_injured, gender)
+box$date...year <- format(as.Date(box$date...year, format = "%Y-%m-%d"), "%Y")
+box <- filter(box,gender!="") 
+box$gen <- factor(box$gender, levels=c("Male","Femle"), labels = c("Male", "Female"))
+box$gender <- NULL
+barplot(table(factor(box$gen)), main="Comparison of gender", 
+        ylab="Frequency", axes=FALSE, ylim = c(0,200000))
+axis(2, at = seq(from = 0, to = 200000, by = 20000))
+```
+
+### The bar chart above shows the gender participation in incidents that took place in 2014-2018 in the USA. The vast majority of men. We do not know if these are only victims, or victims and attackers. We can therefore assume that there are more victims as well as male assailants.
+
+```{r}
+#Chart 3/1
+
+options(repr.plot.width = 6, repr.plot.height = 5)
+colnames(guns_registered) <- c('ID', 'State', 'Nr_of_guns', 'Nr_of_guns_per_capita')
+guns_registered_f1 <- filter(guns_registered, Nr_of_guns > 165)
+guns_registered_f1$ID <- NULL
+rejestr <- ggplot(guns_registered_f1, aes(x=reorder(State,-Nr_of_guns), y=Nr_of_guns))
+
+rejestr + geom_bar(stat="identity", fill = "blue") + geom_text(aes(x=State, y=Nr_of_guns+20,label = Nr_of_guns))+
+  ggtitle("8 States with the highest rate of guns registered") + 
+  labs(x="State",y="Number of guns registered") +
+  theme_classic()
+```
+
+### The above bar chart presents eight US states with the largest number of registered weapons in thous. Most noticeably Texas, then California, Florida, Virginia etc. In the further part of the analysis I will try to see if it has an impact on the number of incidents / killings. It should also be remembered that these states belong to some of the largest population, hence the number of inhabitants may be different.
+
+```{r}
+#Chart 3/2
+
+options(repr.plot.width = 6, repr.plot.height = 5)
+rejestr2 <- ggplot(guns_registered_f1, aes(x=reorder(State,-Nr_of_guns_per_capita), y=Nr_of_guns_per_capita))
+
+rejestr2 + geom_bar(stat="identity", fill = "blue") + geom_text(aes(x=State, y=Nr_of_guns_per_capita+0.02
+                                                                      ,label = Nr_of_guns_per_capita))+
+  ggtitle("8 States with the highest rate of guns registered") +
+  labs(x="State",y="Number of guns per capita") +
+  theme_classic() + scale_y_continuous(breaks=seq(0,0.5,by=0.1), limits=c(0,0.5))
+```
+
+### When it comes to the number of weapons per capita, the most is in Virginia, followed by Arizona and Texas, which also had the largest amount of registered weapons in total.
+
+```{r}
+#Chart 4
+
+options(repr.plot.width = 5, repr.plot.height = 5)
+gn <- tapply(gun_violence$n_injured, gun_violence$state, sum)
+mm = melt(gn)
+
+gun_violence_f1 <- filter(mm, value > 5000) 
+gun_violence_f1 <- gun_violence_f1 %>% arrange(desc(value))
+
+gun_violence_f1$pct <- round(gun_violence_f1$value/sum(gun_violence_f1$value)*100, digits = 2)
+gun_violence_f1$indices <- paste(gun_violence_f1$indices, gun_violence_f1$pct)
+gun_violence_f1$indices <- paste(gun_violence_f1$indices,"%",sep="")
+gun_violence_f1<-gun_violence_f1[order(gun_violence_f1[,2]),]
+
+pie3D(x=gun_violence_f1[,2], labels = gun_violence_f1[,1], main="Number of injured",
+      col=rainbow(length(gun_violence_f1[,1])), theta=pi/3,explode=0.05,radius=1,labelcex=1)
+```
+
+### The above pie chart shows the number of people injured in individual states. Interestingly, the states of New York and Illionois appeared, which did not appear in combination with registered weapons. Nevertheless, they are on the list of 6 states in which there was the highest number of wounded. 1/3 of injured people are in the state of Illionois.
+
+```{r}
+#Chart 5
+
+options(repr.plot.width = 7, repr.plot.height = 4)
+bwplot(n_injured~date...year|gen, data=box, ylab = "Number of injured", xlab="",
+       main="Distribution of persons injured in specific years, divided by gender")
+```
+
+### The above box chart shows the distribution of people injured during incidents in 2014-2018 divided into gender. With a slight advantage on the male side, it happened that more people were injured during the incident. Data from 2018 come from the first three months, that is from the first quarter. However, if this year ends without major massacres, it will mean a declining trend after 2017.
+
+```{r}
+#Chart 6
+
+kill <- gun_violence %>% select(n_killed, state,gender)
+kill_m <- filter(kill, gender=="Male")
+kill_f <- filter(kill, gender=="Femle")
+
+kill1 <- aggregate(n_killed ~ state + gender, data = kill_m, sum)
+kill2 <- aggregate(n_killed ~ state + gender, data = kill_f, sum)
+guns_registered2 <- guns_registered
+names(guns_registered2) <- c("id","state", "n_guns","n_guns_per_capita")
+guns_registered2$id <- NULL
+
+kill_m1 <- merge(kill1, guns_registered2, by="state")
+kill_f1 <- merge(kill2, guns_registered2, by="state")
+kill_mf <- rbind(kill_m1, kill_f1)
+kill_mf$gen <- factor(kill_mf$gender, levels=c("Male","Femle"), labels = c("Male", "Female"))
+kill_mf$gender <- NULL
+options(scipen=999)
+
+ggplot(kill_mf,aes(n_guns*1000,n_killed,size=n_guns_per_capita, colour=gen))+ geom_point()+
+  labs( x="Number of guns registered",y="Number of killed",title="Correlation between guns,victims and gender")+ 
+  scale_size(name="Number of guns per capita")+ scale_color_discrete(name="Gender")+
+  scale_x_continuous(labels=comma)
+```
+
+### The above scatter plot shows the correlation between the number of registered weapons and the number of people killed. In addition, the size of the dot is expressed by the number of weapons per one inhabitant, and the color is separated by gender. The tendencies growing for both sexes, ie with the increase in the number of registered weapons, the number of people killed is increasing. Rather, we can say that the number of weapons per one inhabitant has no effect.
+
+```{r}
+#Chart 7
+
+library(plyr)
+ggplotly(gun_violence %>% count("state")  %>%
+           ggplot(aes(x=reorder(state, freq), y=freq, fill=freq, text=state)) +
+           geom_bar(stat='identity', fill='blue') + coord_flip() +
+           labs(x='', y='Number of incidents', title = "Number of incidents in specific states"),
+         tooltip=c("text", "y"), height = 750, width=800)
+```
+
+### The above bar chart presents the distribution of states with the highest number of incidents in the period 2014-2018. The Illinois state appears again, where the number of registered weapons was not included in the Top 8 list. In addition, this status is placed on the first place in the list, and in the number of injured people. In the next part we will check if it is affected by one of the largest cities in the USA - Chicago. On the following places: California, Florida, Texas and Ohio. The fewest incidents were recorded in Hawaii. In addition, we will check whether this is related to the number of the given state.
+
+```{r}
+#Chart 8
+
+options(repr.plot.width = 5, repr.plot.height = 5)
+aga <- aggregate(n_injured ~ state + date...year, data = gun_violence, sum)
+names(aga) <- c("State", "Date", "Value")
+aga$Date <- format(as.Date(aga$Date, format = "%Y-%m-%d"), "%Y")
+aga <- aga[order(aga$Value, decreasing = TRUE),]
+
+mm1 <- filter(aga, State == c("Illinois") )
+mm2 <- filter(aga, State == c("California") )
+mm3 <- filter(aga, State == c("Florida") )
+mm4 <- filter(aga, State == c("Texas") )
+mm5 <- filter(aga, State == c("New York") )
+mm6 <- filter(aga, State == c("Ohio") )
+
+mm7 <- rbind(mm1,mm2,mm3,mm4,mm5,mm6)
+
+mm8 <- filter(mm7, Date!=2018)
+
+ggplot(mm8,aes(State,Value,fill=Date))+
+  geom_bar(stat="identity",position="dodge")+
+  ggtitle("Number of injured in specific states (years 2014-2017)") + 
+  labs(x="",y="Number of injured") +
+  theme_classic() + scale_fill_discrete(name="", labels=c("2014","2015","2016","2017"))+
+  scale_y_continuous(breaks=seq(0,7000,by=500))
+```
+
+### The above bar chart shows the number of people injured in individual states, this time illustrating the situation over the years 2014-2017. In Illinois, where the highest number of incidents occur and the highest number of injured people, in 2017 the number of incidents noticeably decreased. Similarly, the situation in other states, only California and Ohio, recorded a slight increase.
+
+```{r}
+#Chart 9
+
+options(repr.plot.width = 9, repr.plot.height = 6)
+bn <- tapply(gun_violence$n_injured, gun_violence$city, sum)
+mmm = melt(bn)
+
+names(mmm) <- c("city","value")
+
+c <- merge(mmm,USA_population, by="city")
+c1 <- filter(c, value>1500)
+names(c1) <- c("city", "value", "rank", "population", "density")
+
+par(mai = c(1, 1, 1, 1), omi = c(0, 0, 0, 0))
+
+barplot.xticks <- barplot(c1$population, col = "lightblue", axes=FALSE, xlim=c(0,7),ylim = c(0,2800000), 
+                          xlab = "Cities", ylab = "Population", xpd = FALSE) 
+
+box()
+axis(1, at = barplot.xticks, labels = c("Baltimore","Chicago","Memphis","Milwaukee","New Orleans","Philadelphia"))
+axis(2, at = seq(from = 0, to = 2800000, by = 200000), col = "lightblue", lwd = 2)
+
+par(new = TRUE)
+plot(barplot.xticks, c1$value, type = "b", lwd = 2, col = "red", pch = 16, cex = 1.5, 
+     xlab = "", ann = FALSE, axes = FALSE, xlim=c(0,7), ylim = c(0, 11000), 
+     yaxs = "i")
+with(c1[,], text(c1$value, labels =c1[,2], pos = 3))
+
+axis(4, col = "red", at = seq(from = 0, to = 12000, by = 2000) , lwd = 2)
+mtext("Number of injured", side = 4, line = 3)
+
+title("Population & Number of injured")
+```
+
+### The above bar-linear diagram shows the dependence of the population of a given state, and the number of injured people. There is a correlation that the larger the population, the higher the number of people injured. In New Orleans, despite the population of 2/3 of Memphis population, the number of injured people was even higher by ~ 15%.
+
+```{r}
+#Chart 10
+
+options(repr.plot.width = 4, repr.plot.height = 4)
+gn <- tapply(gun_violence$n_killed, gun_violence$date...year, sum)
+nnn1 = melt(gn)
+names(nnn1) <- c("Date", "Value")
+nnn1$Date <- format(as.Date(nnn1$Date, format = "%Y-%m-%d"), "%Y")
+nnn <- filter(nnn1, Date!=2018)
+my_ts = ts(nnn, start = 2014, end = 2017, frequency = 1)
+kol <- my_ts[,2]
+
+xyplot(kol,panel = panel.xyarea, origin = 0,xlab="Year",
+       ylab="Number of killed",main="Number of killed in the USA year on year",
+       scales=list(x=list(at=seq(2014, 2017, 1)),y=list(at=seq(0, 16500, 600))))
+```
+
+### The above chart illustrating the situation in 2014-2017 indicates that we have an increasing tendency of the number of people killed. Because the data from 2018 come from the first quarter, speculations regarding the continuing upward trend will be carried out later.
+
+
+```{r}
+#Chart 12
+
+options(repr.plot.width = 7, repr.plot.height = 6)
+gun_violence$dateChar <- as.Date(gun_violence$date)
+
+gun_violence$dateChar <- ymd(gun_violence$dateChar)
+str(gun_violence$dateChar)
+
+gun_violence$qu <- quarter(gun_violence$dateChar)
+
+gun_violence$yr <- year(gun_violence$dateChar)
+
+gun_violence2 <- gun_violence[,27:28]
+
+q1 <- count(gun_violence2, c("qu", "yr"))%>%
+    ggplot(aes(x=as.factor(qu), y=freq)) + geom_bar(stat='identity', fill='blue') +
+  scale_y_continuous(labels=comma) + facet_grid(.~yr) + labs(x='Quarter', y='Number of incidents')
+
+q2 <- count(gun_violence2, c("qu", "yr"))%>% filter(qu==1) %>% 
+  ggplot(aes(x=as.factor(yr), y=freq)) + geom_bar(stat='identity', fill='blue') +
+  scale_y_continuous(labels=comma) + labs(x='Incidents in Q1 of each year', y='Number of incidents')
+
+grid.arrange(q1, q2)
+```
+
+### The above graphs will approximate the answer regarding the upward trend in the number of incidents. There seems to be some "seasonality" in Q1 and Q4, which generally have a smaller number of incidents than in Q2 and Q3. The second chart shows that in Q1 2018 there were fewer incidents than in Q1 2017. It can be considered a quite positive signal. However, it should be remembered that this number is still very high compared to other countries (relatively). 
+### Quarterly analysis shows that more incidents occur in warmer spring and summer seasons. It seems that it is worth taking a closer look at this. In order to compare months, I exclude 2018 because it is not complete.
+
+```{r}
+#Chart 13
+
+gun_violence$mo <- lubridate::month(gun_violence$dateChar, label=TRUE)
+ggplotly(gun_violence %>% filter(yr!=c(2013, 2018)) %>% count("mo") %>%
+                   ggplot(aes(x=mo, y=freq)) + geom_bar(stat='identity', fill='blue') +
+                   scale_y_continuous(labels=comma) +
+                   labs(x='Month', y='Number of incidents', title='Incidents by Month'))
+```
+
+### The most visible "seasonality" is the observation that fewer incidents happen in cooler months. November, December and February is 3 months with the lowest number of incidents (February, of course, only 28 days). The only exception is January, which is worth investigating later. Probably incidents during the New Year period contribute to the fact that January has a large number of incidents.
+### The second peak is the period July / August. Probably because many people go on vacation during this period.
+
+```{r}
+#Chart 14
+
+options(repr.plot.width = 6, repr.plot.height = 4)
+gun_violence$da <- day(gun_violence$dateChar)
+gun_violence <- gun_violence %>% mutate(dateChar2=paste(mo, da))
+jan <- gun_violence %>% filter(yr!=c("2013", "2018")) %>% count("dateChar2") %>% top_n(10) %>% arrange(desc(freq))
+ggplot(jan,aes(x=reorder(dateChar2,-freq),y=freq)) + geom_bar(stat="identity",position="dodge", fill="blue") + 
+  labs(x="The most common days",y="Number of incidents", title="The most dangerous days")
+```
+
+### The above numbers are in fact sums of 4 dates, because they are summed up for 4 years (for example: 1-1-2014, 1-1-2015, 1-1-2016, 1-1-2017). With an average of 618 (the total number of incidents in 2014-2017 divided into 365 calendar days, 225598/365), there are not many dates that really stood out. Most of the dates in the top ten seem "ordinary" days in July / August. However, January 1 actually partially explains the higher incidents in January. In addition, independence day (July 4) is also dangerous when it comes to weapon-related incidents. I suppose the high number of July 5 is due to people continuing their celebration after midnight.
+
+```{r}
+#Chart 15
+
+incidentsByState <- gun_violence %>% count("state") 
+incidentsByState <- left_join(incidentsByState, state_population, by="state")
+incidentsByState[,3] <- NULL
+incidentsByState$Per100000 <- round((incidentsByState$freq/incidentsByState$population)*100000)
+
+ggplotly(incidentsByState%>% filter(state!="District of Columbia") %>%
+                   ggplot(aes(x=reorder(state, Per100000), y=Per100000, fill=Per100000, text=state)) +
+                   geom_bar(stat='identity') + coord_flip() +
+                   labs(x="",y="", title='Incidents per 100,000 inhabitants') + scale_fill_gradient(low="yellow", high="red") +
+                   theme(legend.position="none"),
+                 tooltip=c("text", "y"), height = 750, width=800)
+```
+
+### The above graph shows that enriched data, which are related to the population of each state, present a very different picture. As the number of incidents is related to the size of the population, these numbers now represent the "real" threat level of the operation of the weapon. To show it visually, I used color codes. Red indicates a high level of danger in terms of the relative number of incidents, and yellow indicates that the state is relatively safe.
+### Alaska, Louisiana and Delaware now show the highest relative numbers of incidents. Hawaii seems to be the safest country to live in, and the large state of California falls from the second state in terms of absolute incidents to a low position, adjusted for a large population.
+
+```{r}
+#Chart 16 Number of incidents per 100,000 inhabitants in specific states
+
+library(httr)
+setwd(".")
+url <- "https://github.com/malewiczK/Data-Science-overall-projects/blob/master/MapsData/Maps.zip?raw=true"
+download.file(url, dest="Maps.zip", mode="wb") 
+unzip("Maps.zip",exdir="./Maps")
+dir("./Maps")
+library(rgdal)
+
+states <- readOGR(dsn = "./Maps", 
+                  layer = "cb_2017_us_state_500k", 
+                  encoding = "UTF-8")
+addPer100k <- data.frame(id=states$GEOID, name=states$NAME)
+names(addPer100k) <- c("id", "state")
+addPer100k <- left_join(addPer100k, incidentsByState %>% select(state, Per100000), by="state")
+addPer100k$Per100000[is.na(addPer100k$Per100000)] <- 0
+states$per100k <- addPer100k$Per100000
+
+bins <- c(0, 50, 75, 100, 150, Inf)
+pal <- colorBin("Blues", domain = states$per100k, bins = bins)
+
+state_popup <- paste0("<strong>State: </strong>", 
+                      states$NAME, 
+                      "<br><strong>Incidents per 100,000 inhabitants </strong>", 
+                      states$per100k) %>% lapply(htmltools::HTML)
+
+leaflet(data = states) %>%
+  setView(lng=-96, lat=37.8, zoom=3) %>%
+  addProviderTiles("MapBox", options = providerTileOptions(id = "mapbox.light",
+                                                           accessToken = Sys.getenv('MAPBOX_ACCESS_TOKEN'))) %>%
+  addPolygons(
+    fillColor = ~pal(per100k),
+    weight = 2,
+    opacity = 1,
+    color = "white",
+    dashArray = "3",
+    fillOpacity = 0.7,
+    highlight = highlightOptions(
+      weight = 5,
+      color = "#666",
+      dashArray = "",
+      fillOpacity = 0.7,
+      bringToFront = TRUE),
+    label = state_popup,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "15px",
+      direction = "auto")) %>%
+  addLegend(pal = pal, values = ~per100k, opacity = 0.7, title = "Incidents", position = "bottomleft")
+```
+
+### The above map presents data on the number of incidents per 100,000 inhabitants. The above data has already been described in the previous part of the analysis.
+
+```{r}
+#Chart 17 Incidents with highest numbers of victims
+
+Top10 <- gun_violence %>% select(dateChar, n_killed, n_injured, n_victims, 
+                        location_description, city, state, latitude, longitude) 
+names(Top10) <- c("Date", "Killed", "Injured", "Victims", "Location", "City", "State",
+                  "latitude","longitude")
+toop10 <- Top10 %>% arrange(desc(Victims)) %>% top_n(n=13, wt=Victims)
+
+TopMap <- toop10 %>% select(latitude, longitude, Victims, City, Location)
+
+labels <- paste0("<strong>City: </strong>", TopMap$City, 
+                 "<br><strong>Location: </strong>", TopMap$Location,
+                 "<br><strong>Victims </strong>", TopMap$Victims) %>% lapply(htmltools::HTML)
+
+leaflet(TopMap) %>%
+  setView(lng=-96, lat=37.8, zoom=4) %>%
+  addTiles() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addCircleMarkers(~longitude, ~latitude, color = "blue", radius=~sqrt(Victims), label = labels)
+```
+
+### The above map presents data on places where incidents with the largest number of injured persons occurred. Visible a large number of points in Texas, California and Florida.
+
+```{r}
+#Chart 18
+
+gun_violence$incident_characteristics <- gsub("\\|\\|", "|", gun_violence$incident_characteristics)
+
+IncCharac <- cSplit(gun_violence %>% 
+            select(state, city, incident_characteristics), 
+            'incident_characteristics', sep =  '|', direction="long")
+options(repr.plot.width = 20, repr.plot.height = 7)
+IncCharac %>% count("incident_characteristics") %>% top_n(30, wt=freq) %>%
+  ggplot(aes(x=reorder(incident_characteristics, freq), y=freq),height = 750, width=1500) +
+  geom_bar(stat='identity', fill='red') +
+  coord_flip() + labs(x='Incident Category', y="",title="Number of incidents")
+```
+
+### The above chart shows the circumstances of the incident. On the first two places and on the fourth there are positions related to shooting. Their sum results in a significant part of incidents. It should be noted that in third place was the item with the description "Non-Shooting incident", which may mean fights, the use of white or other non-flammable weapons.
+
+```{r}
+#Chart 19
+
+gun_violence$location_description <- gsub("McDonalds", "McDonald's", gun_violence$location_description)
+lok <- count(gun_violence, "location_description") 
+ggplotly( lok %>% filter(location_description!="") %>% 
+        arrange(desc(freq)) %>% top_n(15, wt=freq) %>%
+        ggplot(aes(x=as.factor(reorder(location_description,freq)), y=freq, fill=freq, text=location_description))+ 
+        geom_bar(stat="identity") +labs(x="", y='', title='Number of incidents in specific locations') +
+        coord_flip() + scale_fill_gradient(low="yellow", high="red") +
+        theme(legend.position="none"),tooltip=c("text", "y"))
+```
+
+### The above chart shows the places where incidents most often occurred. It turns out that the most common incidents occur in known, liked and frequented places such as shops, fast-food, and gas stations.
