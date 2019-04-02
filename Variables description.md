@@ -2,7 +2,7 @@
 
 # **Description of the dataset: gun\_violence2.txt**
 
-The data set used in the project contains information on incidents in US states / cities with the use of weapons. There are 240,000 in the collection. observations and 23 variables
+The data set used in the project contains information on incidents in US states / cities with the use of weapons. There are 240,000 in the collection. observations and 23 variables.
 
 |   | **Variable** | **Description** | **Type** |
 | --- | --- | --- | --- |
