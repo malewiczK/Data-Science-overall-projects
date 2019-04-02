@@ -1,2 +1,5 @@
 # Data-Science-overall-projects
-Simply, did it to try some code
+Author: Karol Malewicz
+
+Project 1: Gun Violence - Data set analysis (R)
+Project 2: Trams delays with Scikit-learn & Keras
