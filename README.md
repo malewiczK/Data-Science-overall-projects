@@ -1,14 +1,10 @@
 # Data-Science-overall-projects
 Author: Karol Malewicz
 
-### Project 1: Gun Violence - Data set analysis (R).rmd
+### Project 1: Gun Violence - Data set analysis (R).html
 
-Variables description: [desc](https://github.com/malewiczK/Data-Science-overall-projects/blob/master/Variables%20description.md)
+Variables description: [desc](https://github.com/malewiczK/Data-Science-overall-projects/blob/master/Data/Variables%20description.md)
 
-or Gun Violence - Data set analysis (R).ipnyb
-- to open maps, please download ipynb and set Kernel in Jupyter to R instead of Python
-
-or Gun Violence - Data set analysis (R).nb.html
-- download html file
+Preview is too huge, please download ```nb.html``` file to display content
 
 ### Project 2: Trams delays with Scikit-learn & Keras
