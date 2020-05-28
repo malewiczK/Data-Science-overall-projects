@@ -29,7 +29,7 @@ Data set coming from http://stat-computing.org
 Churn_analysis + classification model <br>
 
 
-### Project 3: [Gun Violence](https://github.com/malewiczK/Data-Science-overall-projects/tree/master/Gun_Violence)
+### Project 3: [Gun Violence](https://github.com/malewiczK/Data-Science-overall-projects/blob/master/Gun_Violence/Gun%20Violence%20-%20Data%20set%20analysis%20(R).nb.html)
 
 Data set analysis
 
