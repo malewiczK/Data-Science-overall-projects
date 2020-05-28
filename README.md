@@ -9,8 +9,8 @@ ______
 
 Try to open that notebook that you want using nbviewer online, you don't need to install it.
 
-1. Open [https://nbviewer.jupyter.org/](https://nbviewer.jupyter.org/)
-2. Paste the link to your notebook, (e.g. "https://github.com/malewiczK/Data-Science-overall-projects/blob/master/Trams%20delays%20with%20Scikit-learn%20%26%20Keras.ipynb")
+1. Open in new tab [https://nbviewer.jupyter.org/](https://nbviewer.jupyter.org/)
+2. Paste the link to your notebook, (e.g. "https://github.com/malewiczK/Data-Science-overall-projects/blob/master/Airlines/Airlines.ipynb")
 
 ________
 
