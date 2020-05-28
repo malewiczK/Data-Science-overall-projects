@@ -5,6 +5,7 @@ Author: Karol Malewicz
 
 Variables description: [desc](https://github.com/malewiczK/Data-Science-overall-projects/blob/master/Data/Variables%20description.md)
 
-Preview is too huge, please download .html file to display content
+Preview is too huge, please download ```nb.html``` file to display content
+
 
 ### Project 2: Trams delays with Scikit-learn & Keras
