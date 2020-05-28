@@ -7,4 +7,5 @@ Variables description: [desc](https://github.com/malewiczK/Data-Science-overall-
 
 Preview is too huge, please download ```nb.html``` file to display content
 
+
 ### Project 2: Trams delays with Scikit-learn & Keras
